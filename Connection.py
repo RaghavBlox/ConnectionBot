@@ -7,26 +7,43 @@ import time
 import csv
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from fastapi import FastAPI, HTTPException
 
-options = webdriver.ChromeOptions()
-driver = webdriver.Chrome(options=options)
-driver.get('https://www.linkedin.com')
-time.sleep(2)
-
-username = driver.find_element(By.XPATH, "//input[@name='session_key']")
-password = driver.find_element(By.XPATH, "//input[@name='session_password']")
+app = FastAPI()
 
 
-username.send_keys('EmailorUsername')
-password.send_keys('Password')
-time.sleep(2)
+@app.get("/open-linkedin-website")
+async def open_linkedin_website():
+    global driver
 
-submit = driver.find_element(By.XPATH, "//button[@type='submit']").click()
-print('logged in')
+    options = webdriver.ChromeOptions()
+    driver = webdriver.Chrome(options=options)
+    driver.get('https://www.linkedin.com')
+    time.sleep(2)
+    return {"message": "LinkedIn website opened successfully."}
 
 
-# Define the CSV file path
-csv_file_path = 'test.csv'
+@app.post("/set-username-password")
+async def set_username_password(username: str, password: str):
+    global driver
+    from selenium.webdriver.common.keys import Keys
+
+    if not driver:
+        raise HTTPException(status_code=400, detail="Driver not initialized. Open LinkedIn website first.")
+
+    username_field = driver.find_element(By.XPATH, "//input[@name='session_key']")
+    password_field = driver.find_element(By.XPATH, "//input[@name='session_password']")
+
+    username_field.send_keys(username)
+    password_field.send_keys(password)
+    time.sleep(2)
+    submit = driver.find_element(By.XPATH, "//button[@type='submit']").click()
+    print('logged in')
+
+    return {"message": "Username and password set successfully."}
+
+
+
 
 # Function to send messages to connected people
 def send_messages_to_connected(connection, messages) -> str:
@@ -151,24 +168,80 @@ def send_messages_to_non_connected_without_connect(connection, messages):
     except Exception as e:
         print(f"Error: {e}")
 
-# Open the CSV file and process each row
-with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
-    csvreader = csv.DictReader(csvfile)
-    
-    for row in csvreader:
-        connection = row['yourConnections']
-        messages = row['Message']
-        e=''
+
+@app.post("/run-messaging-functions")
+async def run_messaging_functions():
+    global driver
+    if not driver:
+        raise HTTPException(status_code=400, detail="Driver not initialized. Open LinkedIn website first.")
+
+    csv_file_path = 'test.csv'
+
+    with open(csv_file_path, 'r', newline='', encoding='utf-8') as csvfile:
+        csvreader = csv.DictReader(csvfile)
+
+        for row in csvreader:
+            connection = row['yourConnections']
+            messages = row['Message']
+            e = ''
+            try:
+                e = send_messages_to_connected(connection, messages)
+                if e != '':
+                    e = ''
+                    e = send_messages_to_non_connected_with_connect(connection, messages)
+                    if e != '':
+                        send_messages_to_non_connected_without_connect(connection, messages)
+
+            except Exception as e:
+                print(f"Error: {e}")
+
+    # Close the browser when done
+    driver.quit()
+    return {"message": "Messaging functions completed successfully."}
+
+@app.post("/connection-request")
+async def connection_request():
+    global driver
+    driver.get("https://www.linkedin.com/search/results/people/?geoUrn=%5B%22102713980%22%5D&origin=FACETED_SEARCH&serviceCategory=%5B%222461%22%2C%22220%22%2C%221836%22%2C%2250328%22%5D&page=2")
+
+    wait = WebDriverWait(driver, 10)
+    connect_buttons = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//button[contains(@class,'artdeco-button--secondary')]/span[text()='Connect']")))
+
+    for btn in connect_buttons:
         try:
-            e = send_messages_to_connected(connection, messages)
-            if e != '':
-                e =''
-                e = send_messages_to_non_connected_with_connect(connection, messages)
-                if e!= '':
-                    send_messages_to_non_connected_without_connect(connection, messages)
+            btn.click()
+            print('Connect button clicked')
+            time.sleep(2)
 
+            # Locate the <strong> tag within the parent element
+            name_element = driver.find_element(By.XPATH, "//strong")
+            
+            # Extract the name from the <strong> tag
+            name = name_element.text if name_element.is_displayed() else "LinkedIn User"
+            print(name)
+
+            # Click "Add a note" button
+            addNote = driver.find_element(By.XPATH, "//button[@aria-label='Add a note']")
+            driver.execute_script("arguments[0].click();", addNote)
+            print('Add a note button clicked')
+            time.sleep(2)
+
+            # Add a personalized message with the name
+            message_input = driver.find_element(By.XPATH, "//textarea[@name='message']")
+            message = f"Hello {name}, This is raghav it would be great to connect with you. This is my linkedIn Connection Bot if you want to try it please contact me. https://encrypted-tbn0.gstatic.com/images"
+            message_input.send_keys(message)
+            print(message)
+            time.sleep(2)
+            
+            #Perform additional actions (e.g., sending a connection request)
+            send = driver.find_element(By.XPATH, "//button[@aria-label='Send now']")
+            driver.execute_script("arguments[0].click();", send)
+            print('Next click')
+            time.sleep(2)
+            
+            # close = driver.find_element(By.XPATH, "//button[@aria-label='Dismiss']")
+            # driver.execute_script("arguments[0].click();", close)
+            # print('Next click')
+            time.sleep(2)
         except Exception as e:
-            print(f"Error: {e}")
-
-# Close the browser when done
-driver.quit()
+            print(f"Error clicking button: {str(e)}")
