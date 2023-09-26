@@ -169,6 +169,7 @@ def send_messages_to_non_connected_without_connect(connection, messages):
         print(f"Error: {e}")
 
 
+#send customised message according to csv file
 @app.post("/run-messaging-functions")
 async def run_messaging_functions():
     global driver
@@ -199,10 +200,13 @@ async def run_messaging_functions():
     driver.quit()
     return {"message": "Messaging functions completed successfully."}
 
+
+
+#send connection request from filtered url link
 @app.post("/connection-request")
-async def connection_request():
+async def connection_request(url: str):
     global driver
-    driver.get("https://www.linkedin.com/search/results/people/?geoUrn=%5B%22102713980%22%5D&origin=FACETED_SEARCH&serviceCategory=%5B%222461%22%2C%22220%22%2C%221836%22%2C%2250328%22%5D&page=2")
+    driver.get(url)
 
     wait = WebDriverWait(driver, 10)
     connect_buttons = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//button[contains(@class,'artdeco-button--secondary')]/span[text()='Connect']")))
