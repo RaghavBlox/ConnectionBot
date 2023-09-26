@@ -17,6 +17,7 @@ async def open_linkedin_website():
     global driver
 
     options = webdriver.ChromeOptions()
+    options.headless = True
     driver = webdriver.Chrome(options=options)
     driver.get('https://www.linkedin.com')
     time.sleep(2)
@@ -203,8 +204,9 @@ async def run_messaging_functions():
 
 
 #send connection request from filtered url link
+#Eg: #https://www.linkedin.com/search/results/people/?geoUrn=%5B%22102713980%22%5D&origin=FACETED_SEARCH&serviceCategory=%5B%222461%22%2C%22220%22%2C%221836%22%2C%2250328%22%5D&page=2
 @app.post("/connection-request")
-async def connection_request(url: str):
+async def connection_request(url: str, message: str):
     global driver
     driver.get(url)
 
@@ -232,7 +234,7 @@ async def connection_request(url: str):
 
             # Add a personalized message with the name
             message_input = driver.find_element(By.XPATH, "//textarea[@name='message']")
-            message = f"Hello {name}, This is raghav it would be great to connect with you. This is my linkedIn Connection Bot if you want to try it please contact me. https://encrypted-tbn0.gstatic.com/images"
+            message = f"Hello {name}, {message}"
             message_input.send_keys(message)
             print(message)
             time.sleep(2)
