@@ -17,7 +17,9 @@ async def open_linkedin_website():
     global driver
 
     options = webdriver.ChromeOptions()
-    options.headless = True
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     driver = webdriver.Chrome(options=options)
     driver.get('https://www.linkedin.com')
     time.sleep(2)
